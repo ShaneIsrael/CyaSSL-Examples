@@ -16,7 +16,7 @@ Once that finishes install `gcc` by typing into the terminal:
 
     sudo apt-get install gcc
 
-Great! Now all that is left to do is compile the `server-tcp.c` file, to do
+Great! Now all that is left to do is compile the `server-tcp.c` file, to do this
 navigate to the folder containing `server-tcp.c` and `Makefile` which should
 be located in the root of your CyaSSL examples folder that you downloaded.
 
