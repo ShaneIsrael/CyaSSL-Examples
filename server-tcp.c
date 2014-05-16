@@ -31,19 +31,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-const int  MAX_SIZE = 256;
-const int  DEFAULT_PORT = 11111;
+void ProcessDataIn();
+
+const int           DEFAULT_PORT = 11111;
+/* Buffer to store data recieved from the client with a 
+   max buffer size of 256 */
+char                buff[256];
+
+/* Identify and access the sockets */
+int                 socketd;
+int                 connd;
+/* Server and Client socket address structures */
+struct sockaddr_in  server_addr;
+struct sockaddr_in  client_addr;
+
 
 int main(int argc, char *argv[])
 {
-    /* Identify and access the sockets */
-    int socketd, connd;
-
     /* Server and Client socket address structures */
     struct sockaddr_in server_addr, client_addr;
-
-    /* Buffer to store data recieved from the client */
-    char buff[MAX_SIZE];
 
     /* Creates a socket that uses an internet IP address */
     /* Sets the type to be Stream based (TCP)            */
@@ -66,37 +72,25 @@ int main(int argc, char *argv[])
     server_addr.sin_family              = AF_INET;
     server_addr.sin_addr.s_addr         = INADDR_ANY;
     /* Set the default port */
-    server_addr.sin_port                = DEFAULT_PORT;
+    server_addr.sin_port                = htons(DEFAULT_PORT);
     
     /* Now we need to attch the server socket to our port. Doing this enforces
        that it does not select a port randomly but instead uses our specified
        port. If we return a value less than 0, then we know it's invalid */
     if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
         printf("ERROR: failed to bind\n");
+        exit(1);
+    }
 
     /* Now we will have the server start listening, it will halt at this point
        until it recieves a connection from a client. We will also allow it to 
        hold 5 client connection requests as pending while the server is
        processing another request */
     listen(socketd, 5);
-    printf("Waitinf for a connection...\n");
-    int size = sizeof(client_addr);
-    
-    /* The server will wait at this point until a client tries to establish a
-       connection. Once a connection is established it returns a new
-       'connected socket descriptor' different from the one created earlier */
-    connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
-    if(connd == -1)
-        printf("Failed to accept the connection\n");
-    else
-        printf("Connected Successfully!");
+    printf("Waiting for a connection...\n");
 
-    /* This new descriptor can now be read from or written to just like a 
-       normal file descriptor */
-    if(read(connd, buff, sizeof(buff)-1) > 0)
-        printf("Data Recieved: %s", buff);
-    else
-        printf("Failed to recieve data\n");
+    ProcessDataIn();
 
     /* At this point the program is finished and you should now close all 
        open sockets that we used. */
@@ -104,4 +98,46 @@ int main(int argc, char *argv[])
     close(socketd);
     return 0;
 
+}
+void ProcessDataIn()
+{
+    int     size = sizeof(client_addr);
+    int     exit = 0; /* 0 means false, 1 means true */
+
+    /* The server will wait at this point until a client tries to establish a
+       connection. Once a connection is established it returns a new
+       'connected socket descriptor' different from the one created earlier */
+    connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
+    if(connd == -1)
+    {
+        printf("Failed to accept the connection\n");
+    }
+    else 
+    {
+        /* This new descriptor can now be read from or written to just like a 
+            normal file descriptor. We can now process and print the data*/
+        if(read(connd, buff, sizeof(buff)-1) > 0)
+        {
+            if(strcmp(buff,"exit")  != 0)
+            {
+                exit = 1;
+                printf("Server shutting down...");
+            }
+            else
+            {
+                printf("Data Recieved: %s\n", buff);
+                write(connd, buff, sizeof(buff)-1);
+            }
+            close(connd);
+        }
+        else
+        {
+            printf("Failed to recieve data, closing connection.\n");
+            exit = 1;
+        }
+    }
+
+    close(connd);
+    if(exit == 0) /* if exit status is still false */
+        ProcessDataIn();
 }
