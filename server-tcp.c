@@ -31,8 +31,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_SIZE = 256
-#define DEFAULT_PORT = 11111
+const int  MAX_SIZE = 256;
+const int  DEFAULT_PORT = 11111;
 
 int main(int argc, char *argv[])
 {
@@ -85,22 +85,22 @@ int main(int argc, char *argv[])
     /* The server will wait at this point until a client tries to establish a
        connection. Once a connection is established it returns a new
        'connected socket descriptor' different from the one created earlier */
-    conn_desc = accept(socketd, (struct sockaddr *)&client_addr, &size);
-    if(conn_desc == -1)
+    connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
+    if(connd == -1)
         printf("Failed to accept the connection\n");
     else
         printf("Connected Successfully!");
 
     /* This new descriptor can now be read from or written to just like a 
        normal file descriptor */
-    if(read(conn_desc, buff, sizeof(buff)-1) > 0)
+    if(read(connd, buff, sizeof(buff)-1) > 0)
         printf("Data Recieved: %s", buff);
     else
         printf("Failed to recieve data\n");
 
     /* At this point the program is finished and you should now close all 
        open sockets that we used. */
-    close(conn_desc);
+    close(connd);
     close(socketd);
     return 0;
 
