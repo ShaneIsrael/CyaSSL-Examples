@@ -30,13 +30,10 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <errno.h>
 void ProcessDataIn();
 
 const int           DEFAULT_PORT = 11111;
-/* Buffer to store data recieved from the client with a 
-   max buffer size of 256 */
-char                buff[256];
 /* Identify and access the sockets */
 int                 socketd;
 int                 connd;
@@ -102,7 +99,6 @@ int main(int argc, char *argv[])
      else
      {
         printf("Client connected successfully\n");
-        write(connd,"I hear you client!\n", sizeof("I hear you client!\n"));   
         ProcessDataIn();
      }
 
@@ -117,13 +113,17 @@ void ProcessDataIn()
 {
     int exit = 0; /* 0 means false, 1 means true */
 
+    /* Buffer to store data recieved from the client with a 
+       max buffer size of 256 */
+    char buff[256];
     /* This new descriptor can now be read from or written to just like a 
        normal file descriptor. We can now process and print the data*/
     if(read(connd, buff, sizeof(buff)-1) > 0)
     {
         printf("Client: %s", buff);
         /* echo back with the sent message */
-        write(connd,buff, sizeof(buff)-1);
+        char msg[] = "I hear you client!\n";
+        write(connd,msg, sizeof(msg)-1);   
     }
 
     if(exit == 0) /* if exit status is still false */
