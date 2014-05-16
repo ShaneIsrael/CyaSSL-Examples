@@ -37,7 +37,6 @@ const int           DEFAULT_PORT = 11111;
 /* Buffer to store data recieved from the client with a 
    max buffer size of 256 */
 char                buff[256];
-
 /* Identify and access the sockets */
 int                 socketd;
 int                 connd;
@@ -90,7 +89,22 @@ int main(int argc, char *argv[])
     listen(socketd, 5);
     printf("Waiting for a connection...\n");
 
-    ProcessDataIn();
+     int size = sizeof(client_addr); 
+    /* The server will wait at this point until a client tries to establish a
+       connection. Once a connection is established it returns a new
+       'connected socket descriptor' different from the one created earlier */
+     connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
+    
+     if(connd == -1)
+     {
+         printf("failed to accept the connection..\n");
+     }
+     else
+     {
+        printf("Client connected successfully\n");
+        write(connd,"I hear you client!\n", sizeof("I hear you client!\n"));   
+        ProcessDataIn();
+     }
 
     /* At this point the program is finished and you should now close all 
        open sockets that we used. */
@@ -101,43 +115,17 @@ int main(int argc, char *argv[])
 }
 void ProcessDataIn()
 {
-    int     size = sizeof(client_addr);
-    int     exit = 0; /* 0 means false, 1 means true */
+    int exit = 0; /* 0 means false, 1 means true */
 
-    /* The server will wait at this point until a client tries to establish a
-       connection. Once a connection is established it returns a new
-       'connected socket descriptor' different from the one created earlier */
-    connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
-    if(connd == -1)
+    /* This new descriptor can now be read from or written to just like a 
+       normal file descriptor. We can now process and print the data*/
+    if(read(connd, buff, sizeof(buff)-1) > 0)
     {
-        printf("Failed to accept the connection\n");
-    }
-    else 
-    {
-        /* This new descriptor can now be read from or written to just like a 
-            normal file descriptor. We can now process and print the data*/
-        if(read(connd, buff, sizeof(buff)-1) > 0)
-        {
-            if(strcmp(buff,"exit")  != 0)
-            {
-                exit = 1;
-                printf("Server shutting down...");
-            }
-            else
-            {
-                printf("Data Recieved: %s\n", buff);
-                write(connd, buff, sizeof(buff)-1);
-            }
-            close(connd);
-        }
-        else
-        {
-            printf("Failed to recieve data, closing connection.\n");
-            exit = 1;
-        }
+        printf("Client: %s", buff);
+        /* echo back with the sent message */
+        write(connd,buff, sizeof(buff)-1);
     }
 
-    close(connd);
     if(exit == 0) /* if exit status is still false */
         ProcessDataIn();
 }
