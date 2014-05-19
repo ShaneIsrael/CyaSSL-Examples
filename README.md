@@ -33,27 +33,6 @@ file type:
 
 and hit enter.
 
-Congratulations, you now have a basic tcp server listening on port `11111` ready
-for a client to connect. However this is an unsecured TCP server.
-
-Setup (Secured with CyaSSL TLS) - Linux Systems
------------------------------------------------
-
-Please refer to the above instruction, but instead of using `server-tcp.c` you
-will instead compile the `server-tcp-tls.c` file. 
-
-After doing that you will then have an executable file named `tcp-server-tls`
-that you can run by typing:
-    
-    ./tcp-server-tls
-
-Congratulations, you now have a basic tcp server secured with a TLS layer
-listening on port `11111`.
-
-tcp-server.c Explained
-----------------------
-
-tcp-server-tls.c Explained
---------------------------
+Congratulations, you now have a basic tcp server listening on port `11111` ready for a client to connect.
 
 
