@@ -27,11 +27,10 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
-
 
 void AcceptAndRead();
 
@@ -39,18 +38,18 @@ const int   DEFAULT_PORT = 11111;
 int         socketd; /* Identify and access the sockets */
 int         connd;   /* Identify and access the clients connection */
 
+/* Server and Client socket address structures */
+struct sockaddr_in server_addr, client_addr;
+
 int main(int argc, char *argv[])
 {
-    /* Server and Client socket address structures */
-    struct sockaddr_in server_addr, client_addr;
-
     /* Creates a socket that uses an internet IP address */
     /* Sets the type to be Stream based (TCP)            */
     /* 0 means choose the default protocol.              */
     socketd = socket(AF_INET, SOCK_STREAM, 0);
 
     if(socketd < 0)     /* If positive value, the socket is valid */
-    {xcxc
+    {
         printf("ERROR: failed to create the socket\n");
         exit(1);        /* Kill the server with exit status 1 */        
     }
@@ -61,7 +60,7 @@ int main(int argc, char *argv[])
     /* Fill the server's address family */
     server_addr.sin_family          = AF_INET;
     server_addr.sin_addr.s_addr     = INADDR_ANY;
-    server_addr.sin_port            = htons(DEFAULT_PORT); 
+    server_addr.sin_port            = htons(DEFAULT_PORT);
 
     /* Attach the server socket to our port */
     if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
@@ -104,15 +103,17 @@ void AcceptAndRead()
         else
         {
             printf("Client connected successfully\n");
+
             for ( ; ; )
             {
                 char buff[256];
-
+                /* Clear the buffer memory for anything  possibly left over */
+                bzero(&buff, sizeof(buff));
                 /* Read the client data into our buff array */
                 if(read(connd, buff, sizeof(buff)-1) > 0)
                 {
                     /* Print any data the client sends to the console */
-                    printf("Client: %s", buff);
+                    printf("Client: %s\n", buff);
 
                     /* Create our reply message */
                     char reply[] = "I hear ya fa shizzle!\n";
@@ -123,7 +124,7 @@ void AcceptAndRead()
                     continue;
                 }
                 /* if the client disconnects break the loop */
-                else 
+                else
                     break;
             }
         }
