@@ -25,11 +25,11 @@ Now run the `make` command from your terminal by typing:
 
     make
 
-You should now have an executable file `server`. Running this executeable
+You should now have an executable file `server-tcp`. Running this executeable
 will start up the server and begin listening on port `11111`. To execute this
 file type:
 
-    ./server
+    ./server-tcp
 
 and hit enter.
 
