@@ -35,64 +35,28 @@
 void AcceptAndRead();
 
 const int   DEFAULT_PORT = 11111;
-int         socketd; /* Identify and access the sockets */
-int         connd;   /* Identify and access the clients connection */
+
+int         sockfd;     /* Identify and access the sockets */
+int         connd;      /* Identify and access the clients connection */
 
 /* Server and Client socket address structures */
 struct sockaddr_in server_addr, client_addr;
 
-int main(int argc, char *argv[])
-{
-    /* Creates a socket that uses an internet IP address */
-    /* Sets the type to be Stream based (TCP)            */
-    /* 0 means choose the default protocol.              */
-    socketd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if(socketd < 0)     /* If positive value, the socket is valid */
-    {
-        printf("ERROR: failed to create the socket\n");
-        exit(1);        /* Kill the server with exit status 1 */        
-    }
-
-    /* Initialize the server address struct to zero */
-    bzero((char *)&server_addr, sizeof(server_addr)); 
-
-    /* Fill the server's address family */
-    server_addr.sin_family          = AF_INET;
-    server_addr.sin_addr.s_addr     = INADDR_ANY;
-    server_addr.sin_port            = htons(DEFAULT_PORT);
-
-    /* Attach the server socket to our port */
-    if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
-        printf("ERROR: failed to bind\n");
-        exit(1);
-    }
-
-    /* Accept client connections and read from them */
-    AcceptAndRead();
-
-    /* Close the open sockets */
-    close(connd);
-    close(socketd);
-    return 0;
-
-}
 void AcceptAndRead()
 {
     int exit = 0; /* 0 = false, 1 = true */
 
     /* Continuously accept connects while not currently in an active connection or told to quit */
-    while(exit == 0)
+    while (exit == 0)
     {
         /* listen for a new connection, allow 5 pending connections */
-        listen(socketd, 5);
+        listen(sockfd, 5);
         printf("Waiting for a connection...\n");
 
         int size = sizeof(client_addr);
 
         /* Wait until a client connects */
-        connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
+        connd = accept(sockfd, (struct sockaddr *)&client_addr, &size);
 
         /* If fails to connect, loop back up and wait for a new connection */
         if(connd == -1)
@@ -107,8 +71,10 @@ void AcceptAndRead()
             for ( ; ; )
             {
                 char buff[256];
+
                 /* Clear the buffer memory for anything  possibly left over */
                 bzero(&buff, sizeof(buff));
+                
                 /* Read the client data into our buff array */
                 if(read(connd, buff, sizeof(buff)-1) > 0)
                 {
@@ -129,5 +95,46 @@ void AcceptAndRead()
             }
         }
     }
+
+}
+
+int main(int argc, char *argv[])
+{
+    /* 
+     * Creates a socket that uses an internet IP address,
+     * Sets the type to be Stream based (TCP),
+     * 0 means choose the default protocol.
+     */
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    /* If positive value, the socket is valid */
+    if(sockfd < 0)
+    {
+        printf("ERROR: failed to create the socket\n");
+        exit(1);        /* Kill the server with exit status 1 */        
+    }
+
+    /* Initialize the server address struct to zero */
+    bzero((char *)&server_addr, sizeof(server_addr)); 
+
+    /* Fill the server's address family */
+    server_addr.sin_family          = AF_INET;
+    server_addr.sin_addr.s_addr     = INADDR_ANY;
+    server_addr.sin_port            = htons(DEFAULT_PORT);
+
+    /* Attach the server socket to our port */
+    if(bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
+        printf("ERROR: failed to bind\n");
+        exit(1);
+    }
+
+    /* Accept client connections and read from them */
+    AcceptAndRead();
+
+    /* Close the open sockets */
+    close(connd);
+    close(sockfd);
+    return 0;
 
 }

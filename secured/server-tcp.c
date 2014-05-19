@@ -38,8 +38,9 @@
 void AcceptAndRead();
 
 const int   DEFAULT_PORT = 11111;
-int         socketd; /* Identify and access the sockets */
-int         connd;   /* Identify and access the clients connection */
+
+int         socketd;    /* Identify and access the sockets */
+int         connd;      /* Identify and access the clients connection */
 
 /* Server and Client socket address structures */
 struct sockaddr_in server_addr, client_addr;
@@ -73,12 +74,15 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    /* Creates a socket that uses an internet IP address */
-    /* Sets the type to be Stream based (TCP)            */
-    /* 0 means choose the default protocol.              */
+    /* 
+     * Creates a socket that uses an internet IP address,
+     * Sets the type to be Stream based (TCP),
+     * 0 means choose the default protocol.
+     */
     socketd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if(socketd < 0)     /* If positive value, the socket is valid */
+    /* If positive value, the socket is valid */
+    if(socketd < 0)
     {
         printf("ERROR: failed to create the socket\n");
         exit(1);        /* Kill the server with exit status 1 */        
@@ -93,7 +97,8 @@ int main(int argc, char *argv[])
     server_addr.sin_port            = htons(DEFAULT_PORT);
 
     /* Attach the server socket to our port */
-    if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr))
+        < 0)
     {
         printf("ERROR: failed to bind\n");
         exit(1);
@@ -111,10 +116,11 @@ void AcceptAndRead()
     int exit_status = 0; /* 0 = false, 1 = true */
 
     /* Continuously accept connects while not currently in an active connection or told to quit */
-    while(exit_status == 0)
+    while (exit_status == 0)
     {
         /* listen for a new connection, allow 5 pending connections */
         listen(socketd, 5);
+
         printf("Waiting for a connection...\n");
 
         int     size = sizeof(client_addr);
@@ -142,13 +148,13 @@ void AcceptAndRead()
             /* direct our ssl to our clients connection */
             CyaSSL_set_fd(ssl, connd);
 
-
-
             for ( ; ; )
             {
                 char    buff[256];
+
                 /* Clear the buffer memory for anything  possibly left over */
                 bzero(&buff, sizeof(buff));
+
                 /* Read the client data into our buff array */
                 if(CyaSSL_read(ssl, buff, sizeof(buff)-1) > 0)
                 {
