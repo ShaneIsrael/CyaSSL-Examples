@@ -40,11 +40,11 @@ That's it. You now have CyaSSL installed on your machine and can now compile and
 Server Startup - Linux Systems
 ------------------------------
 
-Once you have gone through the **Getting Started** section all thats left to do is to compile and run the `server-tcp.c` file, to do this
+Once you have gone through the **Getting Started** section above, all thats left to do is to compile and run the `server-tcp.c` file, to do this
 navigate to the unsecured folder containing `server-tcp.c` and `Makefile` which should
 be located in the root of your CyaSSL examples folder that you downloaded.
 
-Now run the `http://wolfssl.com/yaSSL/Docs-cyassl-manual-2-building-cyassl.htmlmake` command from your terminal by typing:
+Now run the `make` command from your terminal by typing:
 
     make
 
