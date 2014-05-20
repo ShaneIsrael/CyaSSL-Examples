@@ -134,8 +134,8 @@ int main(int argc, char *argv[])
     if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
                 SSL_FILETYPE_PEM) != SSL_SUCCESS)
     {
-        fprintf(stderr, "Error loading certs/server-cert.pem, please check the",
-               " file.\n");
+        fprintf(stderr, "Error loading certs/server-cert.pem, please check"
+                "the file.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -143,8 +143,8 @@ int main(int argc, char *argv[])
     if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", 
                 SSL_FILETYPE_PEM) != SSL_SUCCESS)
     {
-        fprintf(stderr, "Error loading certs/server-key.pem, please check the ",
-                "file.\n");
+        fprintf(stderr, "Error loading certs/server-key.pem, please check"
+                "the file.\n");
         exit(EXIT_FAILURE);
     }
 
