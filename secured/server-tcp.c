@@ -46,10 +46,7 @@ int         connd;      /* Identify and access the clients connection */
 /* Server and Client socket address structures */
 struct sockaddr_in server_addr, client_addr;
 
-/* Create a ctx pointer for our ssl */
-CYASSL_CTX* ctx;
-
-void AcceptAndRead()
+void AcceptAndRead(CYASSL_CTX* ctx)
 {
     int exit_status = 0; /* 0 = false, 1 = true */
 
@@ -110,8 +107,6 @@ void AcceptAndRead()
                     
                     /* Reply back to the client */
                     CyaSSL_write(ssl, reply, sizeof(reply)-1);
-
-                    continue;
                 }
                 /* if the client disconnects break the loop */
                 else
@@ -121,6 +116,7 @@ void AcceptAndRead()
                 			,ret));
                 	else if(ret == 0)
                 		printf("The client has closed the connection.\n");
+
                     break;
                 }
             }
@@ -135,6 +131,9 @@ int main(int argc, char *argv[])
 {
     /* initialize CyaSSL */
     CyaSSL_Init();
+
+    /* Create a ctx pointer for our ssl */
+    CYASSL_CTX* ctx;
 
     /* create and initialize CYASSL_CTX structure */
     if((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL)
@@ -192,7 +191,7 @@ int main(int argc, char *argv[])
     }
 
     /* Accept client connections and read from them */
-    AcceptAndRead();
+    AcceptAndRead(ctx);
 
     CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
     CyaSSL_Cleanup();       /* Free CyaSSL */
