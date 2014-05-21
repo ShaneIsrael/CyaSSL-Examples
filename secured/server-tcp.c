@@ -20,7 +20,8 @@
  * =============================================================================
  *
  * This is a super basic example of what a TCP Server secured with TLS 1.2
- * might look like.
+ * might look like. This server can also resume the session if a client 
+ * nadvertantly disconnects. 
  */
 
 #include <stdio.h>
@@ -62,7 +63,10 @@ void AcceptAndRead()
         printf("Waiting for a connection...\n");
 
         int     size = sizeof(client_addr);
+        int 	ret = 0;
+        int 	err = 0;
         CYASSL* ssl;
+        CYASSL_SESSION* session = 0;
 
         /* Wait until a client connects */
         connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
@@ -86,15 +90,17 @@ void AcceptAndRead()
             /* direct our ssl to our clients connection */
             CyaSSL_set_fd(ssl, connd);
 
+
             for ( ; ; )
             {
                 char    buff[256];
+                int 	ret = 0;
 
                 /* Clear the buffer memory for anything  possibly left over */
                 bzero(&buff, sizeof(buff));
 
                 /* Read the client data into our buff array */
-                if(CyaSSL_read(ssl, buff, sizeof(buff)-1) > 0)
+                if((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) > 0)
                 {
                     /* Print any data the client sends to the console */
                     printf("Client: %s\n", buff);
@@ -109,7 +115,14 @@ void AcceptAndRead()
                 }
                 /* if the client disconnects break the loop */
                 else
+                {
+                	if(ret < 0)
+                		printf("CyaSSL_read error = %d\n", CyaSSL_get_error(ssl
+                			,ret));
+                	else if(ret == 0)
+                		printf("The client has closed the connection.\n");
                     break;
+                }
             }
         }
         CyaSSL_set_fd(ssl, connd);  
