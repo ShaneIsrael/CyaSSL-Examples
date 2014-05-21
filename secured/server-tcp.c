@@ -87,6 +87,9 @@ void AcceptAndRead(CYASSL_CTX* ctx)
             /* direct our ssl to our clients connection */
             CyaSSL_set_fd(ssl, connd);
 
+            printf("Using Non-Blocking I/O: %d\n", CyaSSL_get_using_nonblock(
+                ssl));
+
 
             for ( ; ; )
             {
