@@ -75,8 +75,13 @@ int TCPSelect(int socketfd, int to_sec)
     return -1; /* TEST FAILED */
 
 }
-int ReadAndWrite(CYASSL* ssl, char* buff)
+int ReadAndWrite(CYASSL* ssl)
 {
+    char    buff[256];
+    /* Clear the buffer memory for anything  possibly left 
+       over */
+    bzero(&buff, sizeof(buff));
+    
     int readret = 0;
     int writeret = 0;
 
@@ -86,11 +91,9 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
     char reply[] = "I hear ya fa shizzle!\n";
 
     /* Check for want read error and want write error */
-    readret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
-    writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
 
     /* if the client disconnects break the loop */
-    if(readret == 0)
+    if((readret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) == 0)
     {
         printf("The client has closed the connection.\n");
 
@@ -121,11 +124,13 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
                 error = SSL_FATAL_ERROR;
             }
         }
+        /* Print any data the client sends to the console */
+        printf("Client: %s\n", buff);
 
     }
 
     /* if the client disconnects break the loop */
-    if (writeret == 0)
+    if ((writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1)) == 0)
     {
         printf("The client has closed the connection.\n");
 
@@ -156,12 +161,9 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
                 error = SSL_FATAL_ERROR;
             }
         }
+        /* Write back to the client */
+        CyaSSL_write(ssl, reply, sizeof(reply)-1);
     }
-
-    /* Print any data the client sends to the console */
-    printf("Client: %s \n", buff);
-    /* Write back to the client */
-    CyaSSL_write(ssl, reply, sizeof(reply)-1);
 
     return 1;
 }
@@ -252,15 +254,12 @@ void AcceptAndRead(CYASSL_CTX* ctx)
              * and read in any messages the client sends
              */
             for ( ; ; )
-            {
-                char    buff[256];
-
-                /* Clear the buffer memory for anything  possibly left over */
-                bzero(&buff, sizeof(buff));
-
+            {   
                 /* Read data in and write data out */
-                if (ReadAndWrite(ssl, buff) == 0)
+                if (ReadAndWrite(ssl) == 0)
+                {
                     break;
+                }
             }
         }
         CyaSSL_set_fd(ssl, connd);  
