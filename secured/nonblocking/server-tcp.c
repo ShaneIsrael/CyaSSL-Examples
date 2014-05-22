@@ -77,14 +77,26 @@ int TCPSelect(int socketfd, int to_sec)
 }
 int ReadAndWrite(CYASSL* ssl, char* buff)
 {
-    int ret = 0;
+    int readret = 0;
+    int writeret = 0;
+
     int select_ret;
 
     /* Create our reply message */
     char reply[] = "I hear ya fa shizzle!\n";
 
-    /* Check for want read error and then read */
-    if ((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) != SSL_SUCCESS)
+    /* Check for want read error and want write error */
+    readret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
+    writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
+
+    /* if the client disconnects break the loop */
+    if(readret == 0)
+    {
+        printf("The client has closed the connection.\n");
+
+        return 0;
+    }
+    else if (readret != SSL_SUCCESS)
     {
         int error = CyaSSL_get_error(ssl, 0);
 
@@ -101,7 +113,7 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
 
             if ((select_ret == 1) || (select_ret == 2))
             {
-                ret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
+                readret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
                 error = CyaSSL_get_error(ssl, 0);
             }
             else
@@ -109,21 +121,18 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
                 error = SSL_FATAL_ERROR;
             }
         }
-
-        /* Print any data the client sends to the console */
-        printf("Client: %s \n", buff);
-
+            /* Print any data the client sends to the console */
+    printf("Client: %s \n", buff);
     }
+
     /* if the client disconnects break the loop */
-    else if(ret == 0)
+    if (writeret == 0)
     {
         printf("The client has closed the connection.\n");
 
         return 0;
-    }
-
-    /* Check for want write error and then write */
-    if ((ret = CyaSSL_write(ssl, reply, sizeof(reply)-1)) != SSL_SUCCESS)
+    } 
+    else if (writeret != SSL_SUCCESS)
     {
         int error = CyaSSL_get_error(ssl, 0);
 
@@ -140,7 +149,7 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
 
             if ((select_ret == 1) || (select_ret == 2))
             {
-                ret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
+                writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
                 error = CyaSSL_get_error(ssl, 0);
             }
             else
@@ -149,13 +158,10 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
             }
         }
     }
-    /* if the client disconnects break the loop */
-    else if(ret == 0)
-    {
-        printf("The client has closed the connection.\n");
 
-        return 0;
-    }
+
+    /* Write back to the client */
+    CyaSSL_write(ssl, reply, sizeof(reply)-1);
 
     return 1;
 }
@@ -220,7 +226,7 @@ void AcceptAndRead(CYASSL_CTX* ctx)
                 bzero(&buff, sizeof(buff));
 
                 /* Read data in and write data out */
-                if(ReadAndWrite(ssl, buff) == 0)
+                if (ReadAndWrite(ssl, buff) == 0)
                     break;
             }
         }
@@ -284,6 +290,13 @@ int main(int argc, char *argv[])
     server_addr.sin_family          = AF_INET;
     server_addr.sin_addr.s_addr     = INADDR_ANY;
     server_addr.sin_port            = htons(DEFAULT_PORT);
+
+    int       res, on  = 1;       
+    socklen_t len = sizeof(on);
+    res = setsockopt(socketd, SOL_SOCKET, SO_REUSEADDR, &on, len);
+    if (res < 0)                    
+        printf("setsockopt SO_REUSEADDR failed\n");
+
 
     /* Attach the server socket to our port */
     if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr))
