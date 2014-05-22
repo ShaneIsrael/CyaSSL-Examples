@@ -1,11 +1,11 @@
 CC=gcc
-OBJ = server-tcp-nonblocking.o
+OBJ = server-tls-nonblocking.o
 
-tcp-server: server-tcp-nonblocking.c
-	$(CC) -o server-tcp-nonblocking server-tcp-nonblocking.c -lcyassl
+server-tls-nonblocking: server-tls-nonblocking.c
+	$(CC) -o server-tls-nonblocking server-tls-nonblocking.c -lcyassl
 
 .PHONY: clean
 
 clean:
-	rm -f *.o server-tcp-nonblocking
+	rm -f *.o server-tls-nonblocking
 
