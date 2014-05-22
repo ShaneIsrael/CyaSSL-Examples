@@ -38,7 +38,7 @@
 
 void AcceptAndRead();
 int TCPSelect();
-int ReadAndWrite();
+int NonBlocking_ReadWriteAccept();
 
 const int   DEFAULT_PORT = 11111;
 
@@ -48,6 +48,12 @@ int         connd;      /* Identify and access the clients connection */
 /* Server and Client socket address structures */
 struct sockaddr_in server_addr, client_addr;
 
+/* Create an enum that we will use to tell our 
+ * NonBlocking_ReadWriteAccept() method what to do
+ */
+enum read_write_t {WRITE, READ, ACCEPT};
+
+/*  Check if any sockets are ready for reading and writing and set it */
 int TCPSelect(int socketfd, int to_sec)
 {
     fd_set recvfds, errfds;
@@ -75,34 +81,37 @@ int TCPSelect(int socketfd, int to_sec)
     return -1; /* TEST FAILED */
 
 }
-int ReadAndWrite(CYASSL* ssl)
+/* Checks if NonBlocking I/O is wanted, if it is wanted it will
+ * wait until it's available on the socket before reading or writing */
+int NonBlocking_ReadWriteAccept(CYASSL* ssl, enum read_write_t rw)
 {
     char    buff[256];
+    char    reply[] = "I hear ya fa shizzle!\n";
+
     /* Clear the buffer memory for anything  possibly left 
        over */
     bzero(&buff, sizeof(buff));
-    
-    int readret = 0;
-    int writeret = 0;
 
+    int rwret = 0;
     int select_ret;
 
-    /* Create our reply message */
-    char reply[] = "I hear ya fa shizzle!\n";
+    if (rw == READ)
+        rwret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
+    else if (rw == WRITE)
+        rwret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
+    else if (rw == ACCEPT)
+        rwret = CyaSSL_accept(ssl);
 
-    /* Check for want read error and want write error */
-
-    /* if the client disconnects break the loop */
-    if((readret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) == 0)
+    if (rwret == 0)
     {
-        printf("The client has closed the connection.\n");
-
+        printf("The client has closed the connection!\n");
         return 0;
     }
-    else if (readret != SSL_SUCCESS)
+    else if (rwret != SSL_SUCCESS)
     {
         int error = CyaSSL_get_error(ssl, 0);
 
+        /* while I/O is not ready, keep waiting */
         while ((error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE))
         {
             int currTimeout = 1;
@@ -116,7 +125,13 @@ int ReadAndWrite(CYASSL* ssl)
 
             if ((select_ret == 1) || (select_ret == 2))
             {
-                readret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
+                if (rw == READ)
+                    rwret = CyaSSL_read(ssl, buff, sizeof(buff)-1);
+                else if (rw == WRITE)
+                    rwret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
+                else if (rw == ACCEPT)
+                    rwret = CyaSSL_accept(ssl);
+                
                 error = CyaSSL_get_error(ssl, 0);
             }
             else
@@ -125,48 +140,16 @@ int ReadAndWrite(CYASSL* ssl)
             }
         }
         /* Print any data the client sends to the console */
-        printf("Client: %s\n", buff);
-
-    }
-
-    /* if the client disconnects break the loop */
-    if ((writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1)) == 0)
-    {
-        printf("The client has closed the connection.\n");
-
-        return 0;
-    } 
-    else if (writeret != SSL_SUCCESS)
-    {
-        int error = CyaSSL_get_error(ssl, 0);
-
-        while ((error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE))
-        {
-            int currTimeout = 1;
-
-            if (error == SSL_ERROR_WANT_READ)
-                printf("... server would read block\n");
-            else
-                printf("... server would write block\n");
-
-            select_ret = TCPSelect(socketd, currTimeout);
-
-            if ((select_ret == 1) || (select_ret == 2))
-            {
-                writeret = CyaSSL_write(ssl, reply, sizeof(reply)-1);
-                error = CyaSSL_get_error(ssl, 0);
-            }
-            else
-            {
-                error = SSL_FATAL_ERROR;
-            }
-        }
-        /* Write back to the client */
-        CyaSSL_write(ssl, reply, sizeof(reply)-1);
+        if(rw == READ)
+            printf("Client: %s\n", buff);
+        /* Reply back to the client */
+        else if(rw == WRITE)
+            CyaSSL_write(ssl, reply, sizeof(reply)-1);
     }
 
     return 1;
 }
+
 void AcceptAndRead(CYASSL_CTX* ctx)
 {
     int exit_status = 0; /* 0 = false, 1 = true */
@@ -184,7 +167,6 @@ void AcceptAndRead(CYASSL_CTX* ctx)
         int 	ret = 0;
         int 	err = 0;
         CYASSL* ssl;
-        CYASSL_SESSION* session = 0;
 
         /* Wait until a client connects */
         connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
@@ -215,39 +197,9 @@ void AcceptAndRead(CYASSL_CTX* ctx)
                 printf("Using Non-Blocking I/O: False\n");
             else
                 printf("Using Non-Blocking I/O: True\n");
-
-            /*
-            do the ssl accept there 
-            */
-             int error          = CyaSSL_get_error(ssl, 0);
-             int select_ret;
-             ret                = CyaSSL_accept(ssl);
-
-            if(ret != SSL_SUCCESS)
-            {
-                while ((error == SSL_ERROR_WANT_READ || error == 
-                    SSL_ERROR_WANT_WRITE))
-                {
-                    int currTimeout = 1;
-
-                    if (error == SSL_ERROR_WANT_READ)
-                        printf("... server would read block\n");
-                    else
-                        printf("... server would write block\n");
-
-                    select_ret = TCPSelect(socketd, currTimeout);
-
-                    if ((select_ret == 1) || (select_ret == 2))
-                    {
-                        ret = CyaSSL_accept(ssl);
-                        error = CyaSSL_get_error(ssl, 0);
-                    }
-                    else
-                    {
-                        error = SSL_FATAL_ERROR;
-                    }
-                }
-            }
+            
+            /* Sets CyaSSL_accept(ssl) */
+            NonBlocking_ReadWriteAccept(ssl, ACCEPT);
 
             /* 
              * loop until the connected client disconnects
@@ -255,11 +207,12 @@ void AcceptAndRead(CYASSL_CTX* ctx)
              */
             for ( ; ; )
             {   
-                /* Read data in and write data out */
-                if (ReadAndWrite(ssl) == 0)
-                {
+                /* Read data in when I/O is available */
+                if (NonBlocking_ReadWriteAccept(ssl, READ) == 0)
                     break;
-                }
+                /* Write data out when I/O is available */
+                if(NonBlocking_ReadWriteAccept(ssl, WRITE) == 0)
+                    break;
             }
         }
         CyaSSL_set_fd(ssl, connd);  
