@@ -121,8 +121,7 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
                 error = SSL_FATAL_ERROR;
             }
         }
-            /* Print any data the client sends to the console */
-    printf("Client: %s \n", buff);
+
     }
 
     /* if the client disconnects break the loop */
@@ -159,7 +158,8 @@ int ReadAndWrite(CYASSL* ssl, char* buff)
         }
     }
 
-
+    /* Print any data the client sends to the console */
+    printf("Client: %s \n", buff);
     /* Write back to the client */
     CyaSSL_write(ssl, reply, sizeof(reply)-1);
 
@@ -217,7 +217,40 @@ void AcceptAndRead(CYASSL_CTX* ctx)
             /*
             do the ssl accept there 
             */
+             int error          = CyaSSL_get_error(ssl, 0);
+             int select_ret;
+             ret                = CyaSSL_accept(ssl);
 
+            if(ret != SSL_SUCCESS)
+            {
+                while ((error == SSL_ERROR_WANT_READ || error == 
+                    SSL_ERROR_WANT_WRITE))
+                {
+                    int currTimeout = 1;
+
+                    if (error == SSL_ERROR_WANT_READ)
+                        printf("... server would read block\n");
+                    else
+                        printf("... server would write block\n");
+
+                    select_ret = TCPSelect(socketd, currTimeout);
+
+                    if ((select_ret == 1) || (select_ret == 2))
+                    {
+                        ret = CyaSSL_accept(ssl);
+                        error = CyaSSL_get_error(ssl, 0);
+                    }
+                    else
+                    {
+                        error = SSL_FATAL_ERROR;
+                    }
+                }
+            }
+
+            /* 
+             * loop until the connected client disconnects
+             * and read in any messages the client sends
+             */
             for ( ; ; )
             {
                 char    buff[256];
