@@ -1,11 +1,11 @@
 CC=gcc
-OBJ = server-tcp.o
+OBJ = server-tls.o
 
-tcp-server: server-tcp.c
-	$(CC) -o server-tcp server-tcp.c
+tcp-server: server-tls.c
+	$(CC) -o server-tls server-tls.c -lcyassl
 
 .PHONY: clean
 
 clean:
-	rm -f *.o server-tcp
+	rm -f *.o server-tls
 
