@@ -124,6 +124,7 @@ void AcceptAndRead()
         while ((connd = accept(socketd, (struct sockaddr *)&client_addr, 
             &size)))
         {
+            /* Pass the client into a new thread */
             if (pthread_create(&thread_id, NULL, ThreadHandler, (void *)
                 &connd) < 0)
             {
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
     }
 
     /* Accept client connections and read from them */
-    AcceptAndRead(ctx);
+    AcceptAndRead();
 
     CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
     CyaSSL_Cleanup();       /* Free CyaSSL */
