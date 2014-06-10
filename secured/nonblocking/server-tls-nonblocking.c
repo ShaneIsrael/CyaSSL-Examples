@@ -197,7 +197,6 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd,
 
     return 0;
 }
-/* Emag Eht */
 int main()
 {
     /* initialize CyaSSL */
