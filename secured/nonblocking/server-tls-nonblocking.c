@@ -158,7 +158,7 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd,
     else{
         printf("Client connected successfully!\n");
 
-        if( (ssl = CyaSSL_new(ctx)) == NULL)
+        if ( (ssl = CyaSSL_new(ctx)) == NULL)
         {
             fprintf(stderr, "CyaSSL_new error.\n");
             exit(EXIT_FAILURE);
@@ -187,7 +187,7 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd,
             if (NonBlocking_ReadWriteAccept(ssl, socketfd, READ) == 0)
                 break;
             /* Write data out when I/O is available */
-            if(NonBlocking_ReadWriteAccept(ssl, socketfd, WRITE) == 0)
+            if (NonBlocking_ReadWriteAccept(ssl, socketfd, WRITE) == 0)
                 break;
         }
     }
@@ -197,7 +197,7 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd,
 
     return 0;
 }
-
+/* Emag Eht */
 int main()
 {
     /* initialize CyaSSL */
