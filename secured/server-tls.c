@@ -32,7 +32,6 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <signal.h>
 
 /* include the cyassl library for our TLS 1.2 security */
 #include <cyassl/ssl.h>
@@ -40,10 +39,6 @@
 #define DEFAULT_PORT 11111
 
 int AcceptAndRead();
-void CleanUp();
-
-/* Create a ctx pointer for our ssl */
-CYASSL_CTX* ctx;
 
 int AcceptAndRead(CYASSL_CTX* ctx, int sockfd, struct sockaddr_in clientAddr)
 {
@@ -111,23 +106,13 @@ int AcceptAndRead(CYASSL_CTX* ctx, int sockfd, struct sockaddr_in clientAddr)
     close(connd);               /* close the connected socket */
     return 0;
 }
-void SigHandler()
-{
-    CleanUp();
-}
-void CleanUp()
-{
-    CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
-    CyaSSL_Cleanup();       /* Free CyaSSL */
-    exit(EXIT_SUCCESS);
-}
 int main()
-{
-    signal(SIGINT, SigHandler);
-
+{    
     /* initialize CyaSSL */
     CyaSSL_Init();
-
+    /* Create a ctx pointer for our ssl */
+    CYASSL_CTX* ctx;
+    
     /* create and initialize CYASSL_CTX structure */
     if ((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL){
         fprintf(stderr, "CyaSSL_CTX_new error.\n");

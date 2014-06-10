@@ -31,7 +31,6 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <errno.h>
 
 /* include the cyassl library for our TLS 1.2 security */
@@ -42,10 +41,7 @@
 int AcceptAndRead();
 int TCPSelect();
 int NonBlocking_ReadWriteAccept();
-void CleanUp();
 
-/* Create a ctx pointer for our ssl */
-CYASSL_CTX* ctx;
 
 /* Create an enum that we will use to tell our 
  * NonBlocking_ReadWriteAccept() method what to do
@@ -144,7 +140,7 @@ int NonBlocking_ReadWriteAccept(CYASSL* ssl, int socketfd,
     return 1;
 }
 
-int AcceptAndRead(int socketfd, struct sockaddr_in clientAddr)
+int AcceptAndRead(CYASSL_CTX* ctx, int socketfd, struct sockaddr_in clientAddr)
 {
     int     size = sizeof(clientAddr);
     int     ret = 0;
@@ -201,22 +197,13 @@ int AcceptAndRead(int socketfd, struct sockaddr_in clientAddr)
 
     return 0;
 }
-void SigHandler()
-{
-    CleanUp();
-}
-void CleanUp()
-{
-    CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
-    CyaSSL_Cleanup();       /* Free CyaSSL */
-    exit(EXIT_SUCCESS);
-}
 int main()
 {
-    signal(SIGINT, SigHandler);
-
     /* initialize CyaSSL */
     CyaSSL_Init();
+
+    /* Create a ctx pointer for our ssl */
+    CYASSL_CTX* ctx;
 
     /* create and initialize CYASSL_CTX structure */
     if ((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL){
@@ -289,7 +276,7 @@ int main()
         printf("Waiting for a connection...\n");
 
         /* Accept client connections and read from them */
-        exitLoop = AcceptAndRead(socketfd, clientAddr);
+        exitLoop = AcceptAndRead(ctx, socketfd, clientAddr);
     }
 
     CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */

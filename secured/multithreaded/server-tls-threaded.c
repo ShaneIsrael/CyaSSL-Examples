@@ -32,7 +32,6 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <signal.h>
 #include <pthread.h>
 
 /* include the cyassl library for our TLS 1.2 security */
@@ -42,7 +41,6 @@
 
 int  AcceptAndRead();
 void *ThreadHandler(void*);
-void CleanUp();
 
 /* Create a ctx pointer for our ssl */
 CYASSL_CTX* ctx;
@@ -118,20 +116,8 @@ int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
     }
     return 0;
 }
-void SigHandler()
-{
-    CleanUp();
-}
-void CleanUp()
-{
-    CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
-    CyaSSL_Cleanup();       /* Free CyaSSL */
-    exit(EXIT_SUCCESS);
-}
 int main()
 {
-    signal(SIGINT, SigHandler);
-
     /* initialize CyaSSL */
     CyaSSL_Init();
 
