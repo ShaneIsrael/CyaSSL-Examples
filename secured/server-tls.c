@@ -1,4 +1,4 @@
-/* server-tcp.c
+/* server-tls.c
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -36,101 +36,78 @@
 /* include the cyassl library for our TLS 1.2 security */
 #include <cyassl/ssl.h>
 
-void AcceptAndRead();
+#define DEFAULT_PORT 11111
 
-const int   DEFAULT_PORT = 11111;
+int AcceptAndRead();
 
-int         socketd;    /* Identify and access the sockets */
-int         connd;      /* Identify and access the clients connection */
-
-/* Server and Client socket address structures */
-struct sockaddr_in server_addr, client_addr;
-
-void AcceptAndRead(CYASSL_CTX* ctx)
+int AcceptAndRead(CYASSL_CTX* ctx, int sockfd, struct sockaddr_in clientAddr)
 {
-    int exit_status = 0; /* 0 = false, 1 = true */
+    int     size = sizeof(clientAddr);
+    int     ret = 0;
+    int     err = 0;
+    CYASSL* ssl;
+    CYASSL_SESSION* session = 0;
 
-    /* Continuously accept connects while not currently in an active connection
-       or told to quit */
-    while (exit_status == 0)
-    {
-        /* listen for a new connection, allow 5 pending connections */
-        listen(socketd, 5);
+    /* Wait until a client connects */
+    int connd = accept(sockfd, (struct sockaddr *)&clientAddr, &size);
 
-        printf("Waiting for a connection...\n");
-
-        int     size = sizeof(client_addr);
-        int 	ret = 0;
-        int 	err = 0;
-        CYASSL* ssl;
-        CYASSL_SESSION* session = 0;
-
-        /* Wait until a client connects */
-        connd = accept(socketd, (struct sockaddr *)&client_addr, &size);
-
-        /* If fails to connect, loop back up and wait for a new connection */
-        if(connd == -1)
-        {
-            printf("failed to accept the connection..\n");
-        }
-        /* If it connects, read in and reply to the client */
-        else
-        {
-            printf("Client connected successfully\n");
-
-            if( (ssl = CyaSSL_new(ctx)) == NULL)
-            {
-                fprintf(stderr, "CyaSSL_new error.\n");
-                exit(EXIT_FAILURE);
-            }
-
-            /* direct our ssl to our clients connection */
-            CyaSSL_set_fd(ssl, connd);
-
-            printf("Using Non-Blocking I/O: %d\n", CyaSSL_get_using_nonblock(
-                ssl));
-
-
-            for ( ; ; )
-            {
-                char    buff[256];
-                int 	ret = 0;
-
-                /* Clear the buffer memory for anything  possibly left over */
-                bzero(&buff, sizeof(buff));
-
-                /* Read the client data into our buff array */
-                if((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) > 0)
-                {
-                    /* Print any data the client sends to the console */
-                    printf("Client: %s\n", buff);
-
-                    /* Create our reply message */
-                    char reply[] = "I hear ya fa shizzle!\n";
-                    
-                    /* Reply back to the client */
-                    CyaSSL_write(ssl, reply, sizeof(reply)-1);
-                }
-                /* if the client disconnects break the loop */
-                else
-                {
-                	if(ret < 0)
-                		printf("CyaSSL_read error = %d\n", CyaSSL_get_error(ssl
-                			,ret));
-                	else if(ret == 0)
-                		printf("The client has closed the connection.\n");
-
-                    break;
-                }
-            }
-        }
-        CyaSSL_set_fd(ssl, connd);  
-        CyaSSL_free(ssl);           /* Free the CYASSL object */
-        close(connd);               /* close the connected socket */
+    /* If fails to connect, loop back up and wait for a new connection */
+    if (connd == -1){
+        printf("failed to accept the connection..\n");
     }
+    /* If it connects, read in and reply to the client */
+    else{
+        printf("Client connected successfully\n");
+
+        if( (ssl = CyaSSL_new(ctx)) == NULL){
+            fprintf(stderr, "CyaSSL_new error.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        /* direct our ssl to our clients connection */
+        CyaSSL_set_fd(ssl, connd);
+
+        printf("Using Non-Blocking I/O: %d\n", CyaSSL_get_using_nonblock(
+            ssl));
+
+
+        for ( ; ; ){
+            char    buff[256];
+            int     ret = 0;
+
+            /* Clear the buffer memory for anything  possibly left over */
+            bzero(&buff, sizeof(buff));
+
+            /* Read the client data into our buff array */
+            if((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) > 0){
+                /* Print any data the client sends to the console */
+                printf("Client: %s\n", buff);
+
+                /* Create our reply message */
+                char reply[] = "I hear ya fa shizzle!\n";
+                
+                /* Reply back to the client */
+                CyaSSL_write(ssl, reply, sizeof(reply)-1);
+            }
+            /* if the client disconnects break the loop */
+            else{
+                if (ret < 0)
+                    printf("CyaSSL_read error = %d\n", CyaSSL_get_error(ssl
+                        ,ret));
+                else if(ret == 0)
+                    printf("The client has closed the connection.\n");
+
+                break;
+            }
+        }
+    }
+    CyaSSL_set_fd(ssl, connd);  
+    CyaSSL_free(ssl);           /* Free the CYASSL object */
+    close(connd);               /* close the connected socket */
+    return 0;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     /* initialize CyaSSL */
     CyaSSL_Init();
@@ -139,25 +116,22 @@ int main(int argc, char *argv[])
     CYASSL_CTX* ctx;
 
     /* create and initialize CYASSL_CTX structure */
-    if((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL)
-    {
+    if ((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL){
         fprintf(stderr, "CyaSSL_CTX_new error.\n");
         exit(EXIT_FAILURE);
     }
 
     /* Load server certificate into CYASSL_CTX */
-    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-    {
+    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS){
         fprintf(stderr, "Error loading certs/server-cert.pem, please check"
                 "the file.\n");
         exit(EXIT_FAILURE);
     }
 
     /* Load server key into CYASSL_CTX */
-    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-    {
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS){
         fprintf(stderr, "Error loading certs/server-key.pem, please check"
                 "the file.\n");
         exit(EXIT_FAILURE);
@@ -168,33 +142,44 @@ int main(int argc, char *argv[])
      * Sets the type to be Stream based (TCP),
      * 0 means choose the default protocol.
      */
-    socketd = socket(AF_INET, SOCK_STREAM, 0);
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     /* If positive value, the socket is valid */
-    if(socketd < 0)
-    {
+    if (sockfd < 0){
         printf("ERROR: failed to create the socket\n");
-        exit(1);        /* Kill the server with exit status 1 */        
+        exit(EXIT_FAILURE);        /* Kill the server with exit status 1 */        
     }
+
+    /* Server and client socket address structures */
+    struct sockaddr_in serverAddr, clientAddr;
 
     /* Initialize the server address struct to zero */
-    bzero((char *)&server_addr, sizeof(server_addr)); 
+    memset((char *)&serverAddr, 0, sizeof(serverAddr)); 
 
     /* Fill the server's address family */
-    server_addr.sin_family          = AF_INET;
-    server_addr.sin_addr.s_addr     = INADDR_ANY;
-    server_addr.sin_port            = htons(DEFAULT_PORT);
+    serverAddr.sin_family      = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port        = htons(DEFAULT_PORT);
 
     /* Attach the server socket to our port */
-    if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr))
-        < 0)
-    {
+    if (bind(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr))
+        < 0){
         printf("ERROR: failed to bind\n");
-        exit(1);
+        return 1;
     }
 
-    /* Accept client connections and read from them */
-    AcceptAndRead(ctx);
+    /* Continuously accept connects while not currently in an active connection
+       or told to quit */
+    int loopExit = 0; /* 0 = false, 1 = true */
+    while (loopExit == 0){
+        /* listen for a new connection, allow 5 pending connections */
+        listen(sockfd, 5);
+
+        printf("Waiting for a connection...\n");
+
+        /* Accept client connections and read from them */
+        loopExit = AcceptAndRead(ctx, sockfd, clientAddr);
+    }
 
     CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
     CyaSSL_Cleanup();       /* Free CyaSSL */

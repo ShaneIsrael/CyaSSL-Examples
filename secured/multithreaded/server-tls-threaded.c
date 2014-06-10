@@ -1,4 +1,4 @@
-/* server-tcp.c
+/* server-tls-threaded.c
  *
  * Copyright (C) 2006-2014 wolfSSL Inc.
  *
@@ -32,31 +32,25 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <errno.h>
-
 #include <pthread.h>
 
 /* include the cyassl library for our TLS 1.2 security */
 #include <cyassl/ssl.h>
 
-void AcceptAndRead();
+#define DEFAULT_PORT 11111
+
+int  AcceptAndRead();
 void *ThreadHandler(void*);
 
-const int   DEFAULT_PORT = 11111;
-
-int         socketd;    /* Identify and access the sockets */
 CYASSL_CTX* ctx;        /* Create a ctx pointer for our ssl */
 
-/* Server and Client socket address structures */
-struct sockaddr_in server_addr, client_addr;
-
-void *ThreadHandler(void* socket_desc)
+void *ThreadHandler(void* socketDesc)
 {
-    int connd = *(int*)socket_desc;
+    int connd = *(int*)socketDesc;
     CYASSL* ssl;
     printf("Client connected successfully\n");
 
-    if( (ssl = CyaSSL_new(ctx)) == NULL)
-    {
+    if ( (ssl = CyaSSL_new(ctx)) == NULL){
         fprintf(stderr, "CyaSSL_new error.\n");
         exit(EXIT_FAILURE);
     }
@@ -64,8 +58,7 @@ void *ThreadHandler(void* socket_desc)
     /* direct our ssl to our clients connection */
     CyaSSL_set_fd(ssl, connd);
 
-    for ( ; ; )
-    {
+    for ( ; ; ){
         char    buff[256];
         int     ret = 0;
 
@@ -73,8 +66,7 @@ void *ThreadHandler(void* socket_desc)
         bzero(&buff, sizeof(buff));
 
         /* Read the client data into our buff array */
-        if((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) > 0)
-        {
+        if ((ret = CyaSSL_read(ssl, buff, sizeof(buff)-1)) > 0){
             /* Print any data the client sends to the console */
             printf("Client on Socket %d: %s\n", connd, buff);
 
@@ -85,8 +77,7 @@ void *ThreadHandler(void* socket_desc)
             CyaSSL_write(ssl, reply, sizeof(reply)-1);
         }
         /* if the client disconnects break the loop */
-        else
-        {
+        else{
             if(ret < 0)
                 printf("CyaSSL_read error = %d\n", CyaSSL_get_error(ssl
                     ,ret));
@@ -100,70 +91,53 @@ void *ThreadHandler(void* socket_desc)
         }
     }
 }
-void AcceptAndRead()
+int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 {
-    int exit_status = 0; /* 0 = false, 1 = true */
+    int size = sizeof(clientAddr);
+    int ret = 0;
+    int err = 0;
+    int connd;      /* Identify and access the clients connection */
 
-    /* Continuously accept connects while not currently in an active connection
-       or told to quit */
-    while (exit_status == 0)
-    {
-        /* listen for a new connection, allow 5 pending connections */
-        listen(socketd, 5);
+    pthread_t thread_id;
 
-        printf("Waiting for a connection...\n");
-
-        int     size = sizeof(client_addr);
-        int 	ret = 0;
-        int 	err = 0;
-        int     connd;      /* Identify and access the clients connection */
-
-        pthread_t thread_id;
-
-        /* Wait until a client connects */
-        while ((connd = accept(socketd, (struct sockaddr *)&client_addr, 
-            &size)))
-        {
-            /* Pass the client into a new thread */
-            if (pthread_create(&thread_id, NULL, ThreadHandler, (void *)
-                &connd) < 0)
-            {
-                perror("could not create thread");
-            }
-            printf("Handler assigned\n");
+    /* Wait until a client connects */
+    while ((connd = accept(sockfd, (struct sockaddr *)&clientAddr, 
+        &size))){
+        /* Pass the client into a new thread */
+        if (pthread_create(&thread_id, NULL, ThreadHandler, (void *)
+            &connd) < 0){
+            perror("could not create thread");
         }
-        if(connd < 0)
-        {
-            perror("accept failed");
-        }
+        printf("Handler assigned\n");
     }
+    if (connd < 0){
+        perror("accept failed");
+    }
+    return 0;
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     /* initialize CyaSSL */
     CyaSSL_Init();
 
     /* create and initialize CYASSL_CTX structure */
-    if((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL)
-    {
+    if ((ctx = CyaSSL_CTX_new(CyaTLSv1_2_server_method())) == NULL){
         fprintf(stderr, "CyaSSL_CTX_new error.\n");
         exit(EXIT_FAILURE);
     }
 
     /* Load server certificate into CYASSL_CTX */
-    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-    {
+    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS){
         fprintf(stderr, "Error loading certs/server-cert.pem, please check"
                 "the file.\n");
         exit(EXIT_FAILURE);
     }
 
     /* Load server key into CYASSL_CTX */
-    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-    {
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS){
         fprintf(stderr, "Error loading certs/server-key.pem, please check"
                 "the file.\n");
         exit(EXIT_FAILURE);
@@ -174,33 +148,42 @@ int main(int argc, char *argv[])
      * Sets the type to be Stream based (TCP),
      * 0 means choose the default protocol.
      */
-    socketd = socket(AF_INET, SOCK_STREAM, 0);
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     /* If positive value, the socket is valid */
-    if(socketd < 0)
-    {
+    if (sockfd < 0){
         printf("ERROR: failed to create the socket\n");
-        exit(1);        /* Kill the server with exit status 1 */        
+        exit(EXIT_FAILURE);      /* Kill the server with exit status 1 */        
     }
 
+    /* Server and Client socket address structures */
+    struct sockaddr_in serverAddr, clientAddr;
     /* Initialize the server address struct to zero */
-    bzero((char *)&server_addr, sizeof(server_addr)); 
+    memset((char *)&serverAddr, 0, sizeof(serverAddr)); 
 
     /* Fill the server's address family */
-    server_addr.sin_family          = AF_INET;
-    server_addr.sin_addr.s_addr     = INADDR_ANY;
-    server_addr.sin_port            = htons(DEFAULT_PORT);
+    serverAddr.sin_family      = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port        = htons(DEFAULT_PORT);
 
     /* Attach the server socket to our port */
-    if(bind(socketd, (struct sockaddr *)&server_addr, sizeof(server_addr))
-        < 0)
-    {
+    if (bind(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr))
+        < 0){
         printf("ERROR: failed to bind\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    /* Accept client connections and read from them */
-    AcceptAndRead();
+    /* Continuously accept connects while not currently in an active connection
+       or told to quit */
+    int loopExit = 0; /* 0 = false, 1 = true */
+    while (loopExit == 0){
+        /* listen for a new connection, allow 5 pending connections */
+        listen(sockfd, 5);
+
+        printf("Waiting for a connection...\n");
+        /* Accept client connections and read from them */
+        loopExit = AcceptAndRead(sockfd, clientAddr);
+    }
 
     CyaSSL_CTX_free(ctx);   /* Free CYASSL_CTX */
     CyaSSL_Cleanup();       /* Free CyaSSL */

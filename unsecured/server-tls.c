@@ -32,108 +32,102 @@
 #include <stdlib.h>
 #include <errno.h>
 
-void AcceptAndRead();
+#define DEFAULT_PORT 11111
 
-const int   DEFAULT_PORT = 11111;
+int AcceptAndRead();
 
-int         sockfd;     /* Identify and access the sockets */
-int         connd;      /* Identify and access the clients connection */
-
-/* Server and Client socket address structures */
-struct sockaddr_in server_addr, client_addr;
-
-void AcceptAndRead()
+int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 {
-    int exit = 0; /* 0 = false, 1 = true */
+ 	int size = sizeof(clientAddr);
 
-    /* Continuously accept connects while not currently in an active connection or told to quit */
-    while (exit == 0)
-    {
-        /* listen for a new connection, allow 5 pending connections */
-        listen(sockfd, 5);
-        printf("Waiting for a connection...\n");
+    /* Wait until a client connects */
+    int connd = accept(sockfd, (struct sockaddr *)&clientAddr, &size);
 
-        int size = sizeof(client_addr);
+    /* If fails to connect, loop back up and wait for a new connection */
+    if (connd == -1){
+        printf("failed to accept the connection..\n");
+    }
+    /* If it connects, read in and reply to the client */
+    else{
 
-        /* Wait until a client connects */
-        connd = accept(sockfd, (struct sockaddr *)&client_addr, &size);
+        printf("Client connected successfully\n");
 
-        /* If fails to connect, loop back up and wait for a new connection */
-        if(connd == -1)
-        {
-            printf("failed to accept the connection..\n");
-        }
-        /* If it connects, read in and reply to the client */
-        else
-        {
-            printf("Client connected successfully\n");
+        for ( ; ; ){
 
-            for ( ; ; )
-            {
-                char buff[256];
+            char buff[256];
 
-                /* Clear the buffer memory for anything  possibly left over */
-                bzero(&buff, sizeof(buff));
+            /* Clear the buffer memory for anything  possibly left over */
+            bzero(&buff, sizeof(buff));
+            
+            /* Read the client data into our buff array */
+            if (read(connd, buff, sizeof(buff)-1) > 0){
+                /* Print any data the client sends to the console */
+                printf("Client: %s\n", buff);
+
+                /* Create our reply message */
+                char reply[] = "I hear ya fa shizzle!\n";
                 
-                /* Read the client data into our buff array */
-                if(read(connd, buff, sizeof(buff)-1) > 0)
-                {
-                    /* Print any data the client sends to the console */
-                    printf("Client: %s\n", buff);
-
-                    /* Create our reply message */
-                    char reply[] = "I hear ya fa shizzle!\n";
-                    
-                    /* Reply back to the client */
-                    write(connd, reply, sizeof(reply)-1);
-
-                    continue;
-                }
-                /* if the client disconnects break the loop */
-                else
-                    break;
+                /* Reply back to the client */
+                write(connd, reply, sizeof(reply)-1);
             }
+            /* If the client disconnects break the loop */
+            else
+                break;
         }
     }
 
+    /* Close the socket */
+    close(connd);
+    return 0;
+
 }
 
-int main(int argc, char *argv[])
+int main()
 {
     /* 
      * Creates a socket that uses an internet IP address,
      * Sets the type to be Stream based (TCP),
      * 0 means choose the default protocol.
      */
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+     /* Identify and access the sockets */
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0); 
+    int exit   = 0; 	/* 0 = false, 1 = true */
 
     /* If positive value, the socket is valid */
-    if(sockfd < 0)
-    {
+    if(sockfd < 0){
         printf("ERROR: failed to create the socket\n");
-        exit(1);        /* Kill the server with exit status 1 */        
+        return 1;        /* Kill the server with exit status 1 */        
     }
 
-    /* Initialize the server address struct to zero */
-    bzero((char *)&server_addr, sizeof(server_addr)); 
+    /* Server and client socket address structures */
+	struct sockaddr_in serverAddr, clientAddr;
+
+	/* Initialize the server address struct to zero */
+    memset((char *)&serverAddr, 0, sizeof(serverAddr)); 
 
     /* Fill the server's address family */
-    server_addr.sin_family          = AF_INET;
-    server_addr.sin_addr.s_addr     = INADDR_ANY;
-    server_addr.sin_port            = htons(DEFAULT_PORT);
+    serverAddr.sin_family	   = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port        = htons(DEFAULT_PORT);
 
     /* Attach the server socket to our port */
-    if(bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
+    if(bind(sockfd, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0){
         printf("ERROR: failed to bind\n");
-        exit(1);
+        return 1;
     }
 
-    /* Accept client connections and read from them */
-    AcceptAndRead();
+    /* Continuously accept connections while not currently in an active connection or told to quit */
+    while (exit == 0){
+        /* Listen for a new connection, allow 5 pending connections */
+        listen(sockfd, 5);
+        printf("Waiting for a connection...\n");
+
+        /* Accept client connections and read from them */
+    	exit = AcceptAndRead(sockfd, clientAddr);
+    }
 
     /* Close the open sockets */
-    close(connd);
     close(sockfd);
     return 0;
 
