@@ -107,15 +107,15 @@ int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 
     /* Wait until a client connects */
     while ((connd = accept(sockfd, (struct sockaddr *)&clientAddr, 
-        &size))){
+        &size))) {
         /* Pass the client into a new thread */
         if (pthread_create(&thread_id, NULL, ThreadHandler, (void *)
-            &connd) < 0){
+            &connd) < 0) {
             perror("could not create thread");
         }
         printf("Handler assigned\n");
     }
-    if (connd < 0){
+    if (connd < 0) {
         perror("accept failed");
     }
 
