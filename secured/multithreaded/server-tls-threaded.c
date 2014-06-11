@@ -34,7 +34,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-/* include the cyassl library for our TLS 1.2 security */
+/* Include the CyaSSL library for our TLS 1.2 security */
 #include <cyassl/ssl.h>
 
 #define DEFAULT_PORT 11111
@@ -94,6 +94,8 @@ void *ThreadHandler(void* socketDesc)
         }
     }
 }
+
+
 int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 {
     int size = sizeof(clientAddr);
@@ -119,6 +121,8 @@ int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 
     return 0;
 }
+
+
 int main()
 {
     /* 
@@ -185,7 +189,7 @@ int main()
     while (loopExit == 0) {
         /* Listen for a new connection, allow 5 pending connections */
         ret = listen(sockfd, 5);
-        if (ret == SSL_SUCCESS) {
+        if (ret == 0) {
 
             /* Accept client connections and read from them */
             loopExit = AcceptAndRead(sockfd, clientAddr);

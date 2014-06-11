@@ -32,7 +32,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-/* include the cyassl library for our TLS 1.2 security */
+/* Include the CyaSSL library for our TLS 1.2 security */
 #include <cyassl/ssl.h>
 
 #define DEFAULT_PORT 11111
@@ -44,28 +44,25 @@ enum read_write_t {WRITE, READ, ACCEPT};
 
 int AcceptAndRead(CYASSL_CTX* ctx, int socketfd, 
     struct sockaddr_in clientAddr);
-int TCPSelect(int socketfd, int to_sec);
+int TCPSelect(int socketfd);
 int NonBlocking_ReadWriteAccept(CYASSL* ssl, int socketfd, 
     enum read_write_t rw);
 
 /*  Check if any sockets are ready for reading and writing and set it */
-int TCPSelect(int socketfd, int to_sec)
+int TCPSelect(int socketfd)
 {
     fd_set recvfds, errfds;
     int nfds = socketfd + 1;
     int result;
-    struct timeval timeout = { (to_sec > 0) ? to_sec : 0, 0};
 
     FD_ZERO(&recvfds);
     FD_SET(socketfd, &recvfds);
     FD_ZERO(&errfds);
     FD_SET(socketfd, &errfds);
 
-    result = select(nfds, &recvfds, NULL, &errfds, &timeout);
+    result = select(nfds, &recvfds, NULL, &errfds, NULL);
 
-    if (result == 0)
-        return 0; /* TEST TIMEOUT */
-    else if (result > 0) {
+    if (result > 0) {
         if (FD_ISSET(socketfd, &recvfds))
             return 1; /* RECV READY */
         else if (FD_ISSET(socketfd, &errfds))
@@ -129,14 +126,19 @@ int NonBlocking_ReadWriteAccept(CYASSL* ssl, int socketfd,
             }
             else {
                 error = SSL_FATAL_ERROR;
+                return -1;
             }
         }
         /* Print any data the client sends to the console */
         if (rw == READ)
             printf("Client: %s\n", buff);
         /* Reply back to the client */
-        else if (rw == WRITE)
-            CyaSSL_write(ssl, reply, sizeof(reply)-1);
+        else if (rw == WRITE) {
+            if ((ret = CyaSSL_write(ssl, reply, sizeof(reply)-1)) < 0) {
+                printf("CyaSSL_write error = %d\n", 
+                    CyaSSL_get_error(ssl, ret));
+            }
+        }
     }
 
     return 1;
@@ -177,7 +179,8 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd, struct sockaddr_in clientAddr)
             printf("Using Non-Blocking I/O: True\n");
         
         /* Sets CyaSSL_accept(ssl) */
-        NonBlocking_ReadWriteAccept(ssl, socketfd, ACCEPT);
+        if(NonBlocking_ReadWriteAccept(ssl, socketfd, ACCEPT) < 0)
+            return 0;
 
         /* 
          * loop until the connected client disconnects
@@ -197,6 +200,8 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd, struct sockaddr_in clientAddr)
 
     return 0;
 }
+
+
 int main()
 {
     /* 
@@ -274,7 +279,7 @@ int main()
     while (loopExit == 0) {
         /* listen for a new connection, allow 5 pending connections */
         ret = listen(socketfd, 5);
-        if (ret == SSL_SUCCESS) {
+        if (ret == 0) {
 
             /* Accept client connections and read from them */
             loopExit = AcceptAndRead(ctx, socketfd, clientAddr);

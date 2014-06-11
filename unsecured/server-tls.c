@@ -78,9 +78,10 @@ int AcceptAndRead(int sockfd, struct sockaddr_in clientAddr)
 
     /* Close the socket */
     close(connd);
+    
     return 0;
-
 }
+
 
 int main()
 {
