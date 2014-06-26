@@ -81,6 +81,7 @@ int NonBlocking_ReadWriteAccept(CYASSL* ssl, int socketfd,
     char       buff[256];
     int        rwret = 0;
     int        selectRet;
+    int 	   ret;
 
 
     /* Clear the buffer memory for anything  possibly left 
@@ -104,15 +105,13 @@ int NonBlocking_ReadWriteAccept(CYASSL* ssl, int socketfd,
         /* while I/O is not ready, keep waiting */
         while ((error == SSL_ERROR_WANT_READ || 
             error == SSL_ERROR_WANT_WRITE)) {
-            
-            int currTimeout = 1;
 
             if (error == SSL_ERROR_WANT_READ)
                 printf("... server would read block\n");
             else
                 printf("... server would write block\n");
 
-            selectRet = TCPSelect(socketfd, currTimeout);
+            selectRet = TCPSelect(socketfd);
 
             if ((selectRet == 1) || (selectRet == 2)) {
                 if (rw == READ)
