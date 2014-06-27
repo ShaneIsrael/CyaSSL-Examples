@@ -30,6 +30,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <stdlib.h>
+#include <sys/fcntl.h>
 #include <errno.h>
 
 /* Include the CyaSSL library for our TLS 1.2 security */
@@ -168,14 +169,6 @@ int AcceptAndRead(CYASSL_CTX* ctx, int socketfd, struct sockaddr_in clientAddr)
 
         /* Direct our ssl to our clients connection */
         CyaSSL_set_fd(ssl, connd);
-
-        /* Set the CyaSSL to use Non Blocking I/O */
-        CyaSSL_set_using_nonblock(ssl, 1);
-
-        if (CyaSSL_get_using_nonblock(ssl) == 0)
-            printf("Using Non-Blocking I/O: False\n");
-        else
-            printf("Using Non-Blocking I/O: True\n");
         
         /* Sets CyaSSL_accept(ssl) */
         if(NonBlocking_ReadWriteAccept(ssl, socketfd, ACCEPT) < 0)
@@ -212,6 +205,9 @@ int main()
     int loopExit = 0; /* 0 = False, 1 = True */
     int ret      = 0; /* Return variable */
     int on       = 1;
+
+    /* Set nonblocking */
+    //fcntl(socketfd, F_SETFL, fcntl(socketfd, F_GETFL, 0) | O_NONBLOCK);
 
     /* Create a ctx pointer for our ssl */
     CYASSL_CTX* ctx;
@@ -279,7 +275,6 @@ int main()
         /* listen for a new connection, allow 5 pending connections */
         ret = listen(socketfd, 5);
         if (ret == 0) {
-
             /* Accept client connections and read from them */
             loopExit = AcceptAndRead(ctx, socketfd, clientAddr);
         }
