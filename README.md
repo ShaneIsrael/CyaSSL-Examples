@@ -4,6 +4,9 @@ CyaSSL-Examples
 a very basic client and server example using the CyaSSL API. Complete code 
 explanations of both the unsecured and secured server are available below.
 
+## NOTE
+For the most up-to-date version of CyaSSL-Examples please go to: https://github.com/wolfSSL/wolfssl-examples
+
 Getting Started - Linux Systems
 ---------------------------------
 The following instructions will work for both the `secured` and `unsecured` servers. Depending on which you want to setup and run, please navigate to the corresponding `secured` or `unsecured` folder before continueing...
